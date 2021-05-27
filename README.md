@@ -18,11 +18,11 @@ Just customize this to your needs and run:
 
 ```
 docker run -it -d \
-    -p 8080:8080 \
+    -p 8053:8053 \
     -p 53:53 \
     -p 53:53/udp \
-    -e SHARED_SECRET=changeme \
-    -e ZONE=example.org \
+    -e SHARED_SECRET=lluisAprovama \
+    -e ZONE=lmbfao.ddns.net \
     -e RECORD_TTL=3600 \
     --name=dyndns \
     davd/docker-ddns:latest
@@ -38,7 +38,7 @@ storage, please refer to this file: https://github.com/dprandzioch/docker-ddns/b
 ### Build from source / GitHub
 
 ```
-git clone https://github.com/dprandzioch/docker-ddns
+git clone https://github.com/SupremeLobster/docker-ddns
 git checkout master # Make sure to build the latest stable release
 cd docker-ddns
 $EDITOR envfile
@@ -54,7 +54,7 @@ Afterwards you have a running docker container that exposes three ports:
 
 * 53/TCP    -> DNS
 * 53/UDP    -> DNS
-* 8080/TCP  -> Management REST API
+* 8053/TCP  -> Management REST API
 
 
 ## Using the API
@@ -64,15 +64,18 @@ interface, that almost any router that supports Custom DDNS providers can
 attach to (e.g. Fritz!Box). It is highly recommended to put a reverse proxy
 before the API.
 
-It provides one single GET request, that is used as follows:
+It provides two single GET requests (one for updating and the other for resolving IPs), that are used as follows:
 
-http://myhost.mydomain.tld:8080/update?secret=changeme&domain=foo&addr=1.2.3.4
+http://lmbfao.ddns.net:8053/update?secret=lluisAprovama&domain=user&addr=1.2.3.4
+http://lmbfao.ddns.net:8053/resolve?secret=lluisAprovama&domain=user
+
+The second request provides the ability to do "pseudo-resolutions", so that you can run a "pseudo-DNS" server on a subdomain that you don't fully own (like a free subdomain from noip.com)
 
 ### Fields
 
 * `secret`: The shared secret set in `envfile`
 * `domain`: The subdomain to your configured domain, in this example it would
-   result in `foo.example.org`. Could also be multiple domains that should be
+   result in `user.lmbfao.ddns.net`. Could also be multiple domains that should be
    redirected to the same domain separated by comma, so "foo,bar"
 * `addr`: IPv4 or IPv6 address of the name record
 
@@ -136,7 +139,7 @@ docker logs -f dyndns
 
 ## DNS setup
 
-To provide a little help... To your "real" domain, like `domain.tld`, you
+To provide a little help... To your "real" domain, like `ddns.net`, you
 should add a subdomain that is delegated to this DDNS server like this:
 
 ```
@@ -148,11 +151,11 @@ ns                       IN AAAA    <optional, put ipv6 of dns server here>
 Your management API should then also be accessible through
 
 ```
-http://ns.domain.tld:8080/update?...
+http://ns.ddns.net:8053/update?...
 ```
 
 If you provide `foo` as a domain when using the REST API, the resulting domain
-will then be `foo.dyndns.domain.tld`.
+will then be `foo.lmbfao.ddns.net`.
 
 ## Common pitfalls
 

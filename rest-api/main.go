@@ -21,14 +21,15 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/update", Update).Methods("GET")
+	router.HandleFunc("/resolve", Resolve).Methods("GET") // AFEGIM PER FER PSEUDO-RESOLUCIONS DNS
 
 	/* DynDNS compatible handlers. Most routers will invoke /nic/update */
 	router.HandleFunc("/nic/update", DynUpdate).Methods("GET")
 	router.HandleFunc("/v2/update", DynUpdate).Methods("GET")
 	router.HandleFunc("/v3/update", DynUpdate).Methods("GET")
 
-	log.Println(fmt.Sprintf("Serving dyndns REST services on 0.0.0.0:8080..."))
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Println(fmt.Sprintf("Serving dyndns REST services on 0.0.0.0:8053..."))
+	log.Fatal(http.ListenAndServe(":8053", router))
 }
 
 func DynUpdate(w http.ResponseWriter, r *http.Request) {
@@ -135,4 +136,100 @@ func UpdateRecord(domain string, ipaddr string, addrType string) string {
 	}
 
 	return out.String()
+}
+
+func Resolve(w http.ResponseWriter, r *http.Request) {
+	extractor := RequestDataExtractor{
+		Address: func(r *http.Request) string { return r.URL.Query().Get("addr") },
+		Secret:  func(r *http.Request) string { return r.URL.Query().Get("secret") },
+		Domain:  func(r *http.Request) string { return r.URL.Query().Get("domain") },
+	}
+	response := BuildWebserviceResponseFromRequest(r, appConfig, extractor)
+
+
+	cmd := exec.Command("nslookup", fmt.Sprintf(response.Domain + "." + appConfig.Domain), "localhost")
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	cmd.Run()
+
+	f, err := ioutil.TempFile(os.TempDir(), "temp")
+	if err != nil {
+		response.Success = false
+		response.Message = err.Error()
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	defer os.Remove(f.Name())
+	wf := bufio.NewWriter(f)
+
+	wf.WriteString(fmt.Sprintf("%s", out.String()))
+	wf.Flush()
+	f.Close()
+
+
+	cmd2 := exec.Command("grep", "Address", f.Name())
+	var out2 bytes.Buffer
+	var stderr2 bytes.Buffer
+	cmd2.Stdout = &out2
+	cmd2.Stderr = &stderr2
+	cmd2.Run()
+
+
+	f2, err2 := ioutil.TempFile(os.TempDir(), "temp")
+	if err2 != nil {
+		response.Success = false
+		response.Message = err2.Error()
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	defer os.Remove(f2.Name())
+	wf2 := bufio.NewWriter(f2)
+
+	wf2.WriteString(fmt.Sprintf("%s", out2.String()))
+	wf2.Flush()
+	f2.Close()
+
+
+	cmd3 := exec.Command("tail", "-1", f2.Name())
+	var out3 bytes.Buffer
+	var stderr3 bytes.Buffer
+	cmd3.Stdout = &out3
+	cmd3.Stderr = &stderr3
+	cmd3.Run()
+
+
+	f3, err3 := ioutil.TempFile(os.TempDir(), "temp")
+	if err3 != nil {
+		response.Success = false
+		response.Message = err3.Error()
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	defer os.Remove(f3.Name())
+	wf3 := bufio.NewWriter(f3)
+
+	wf3.WriteString(fmt.Sprintf("%s", out3.String()))
+	wf3.Flush()
+	f3.Close()
+
+
+	cmd4 := exec.Command("cut", "-f", "2", "-d", " ", f3.Name())
+	var out4 bytes.Buffer
+	var stderr4 bytes.Buffer
+	cmd4.Stdout = &out4
+	cmd4.Stderr = &stderr4
+	cmd4.Run()
+
+	var result string
+	
+	fmt.Sscanf(out4.String(), "%s\n", &result)
+
+	response.Success = true
+	response.Message = result
+	json.NewEncoder(w).Encode(response)
 }

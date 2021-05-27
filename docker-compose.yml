@@ -12,6 +12,6 @@ services:
     ports:
       - "53:53"
       - "53:53/udp"
-      - "8080:8080"
+      - "8053:8053"
 #    volumes:
 #       - ./bind-data:/var/cache/bind

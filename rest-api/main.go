@@ -226,6 +226,8 @@ func Resolve(w http.ResponseWriter, r *http.Request) {
 	cmd4.Run()
 
 	var result string
+
+	log.Println(fmt.Sprintf("A record resolution request for: %s", response.Domain))
 	
 	fmt.Sscanf(out4.String(), "%s\n", &result)
 
